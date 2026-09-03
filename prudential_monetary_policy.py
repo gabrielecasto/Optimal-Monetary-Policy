@@ -11,10 +11,13 @@ Model variables are expressed as log-linear deviations unless explicitly convert
 to levels. Figures are exported in both PDF and PNG formats.
 """
 
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.interpolate import RegularGridInterpolator
+from scipy.optimize import minimize
 
 # =============================================================================
 # QUESTION 1 — ONE-TIME NEGATIVE PRODUCTIVITY SHOCK: TAYLOR RULE
@@ -597,51 +600,437 @@ if include_kappa_zero:
 # =============================================================================
 # QUESTION 4 — ONE-TIME POSITIVE PRODUCTIVITY SHOCK: TAYLOR RULE
 # =============================================================================
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
+# The period-0 allocation is imposed by the assignment. From period 1 onward,
+# the economy follows the Taylor-rule transition derived analytically.
+
+# Question-specific calibration
+a0 = 1.0          # positive productivity shock
+phi_pi = 1.5      # Taylor-rule coefficient on inflation
+phi_u = 0.5       # Taylor-rule coefficient on unemployment
+xi = 1.0          # slope of wage Phillips curve
+lam = 0.5         # wage indexation
+
+T = 8             # plot periods t=0,...,8
+
+# Ensure the figure output directory exists.
+os.makedirs("figures", exist_ok=True)
+
+# Initialize transition paths
+time = np.arange(T + 1)
+
+y = np.zeros(T + 1)
+u = np.zeros(T + 1)
+pi = np.zeros(T + 1)
+pi_w = np.zeros(T + 1)
+
+# Impact allocation: t = 0
+y[0] = a0
+u[0] = 0.0
+pi[0] = 0.0
+pi_w[0] = a0
+
+# Stable root governing the bounded Taylor-rule transition
+B = 1 + phi_u + lam + xi * phi_pi
+disc = B**2 - 4 * (1 + xi) * (1 + phi_u) * lam
+r = (B - np.sqrt(disc)) / (2 * (1 + xi))
+
+# First adjustment period: t = 1
+pi1 = ((1 + phi_u) * a0) / (
+    1 + phi_u + xi * phi_pi + lam - (1 + xi) * r
+)
+u1 = (a0 - pi1) / xi
+
+pi[1] = pi1
+u[1] = u1
+y[1] = -u1
+pi_w[1] = pi1 - a0
+
+# Remaining transition: t >= 2
+for t in range(2, T + 1):
+    pi[t] = (r ** (t - 1)) * pi1
+    u[t] = ((lam - r) / xi) * (r ** (t - 2)) * pi1
+    y[t] = -u[t]
+    pi_w[t] = pi[t]
+
+# Figure style
+plt.rcParams.update({
+    "font.family": "serif",
+    "mathtext.fontset": "cm",
+    "font.size": 11,
+    "axes.titlesize": 13,
+    "axes.labelsize": 10,
+    "xtick.labelsize": 9,
+    "ytick.labelsize": 9,
+    "axes.spines.top": True,
+    "axes.spines.right": True,
+    "axes.edgecolor": "black",
+    "axes.linewidth": 0.8,
+    "xtick.direction": "in",
+    "ytick.direction": "in",
+    "figure.facecolor": "white",
+    "axes.facecolor": "white",
+    "savefig.facecolor": "white",
+})
+
+green = "darkgreen"
+
+fig, axs = plt.subplots(2, 2, figsize=(9, 6))
+
+series = [
+    (y, r"Output $y_t$", (-0.65, 1.10)),
+    (u, r"Unemployment $u_t$", (-0.08, 0.55)),
+    (pi, r"Inflation $\pi_t$", (-0.08, 0.55)),
+    (pi_w, r"Wage inflation $\pi_t^W$", (-0.65, 1.10)),
+]
+
+for ax, (data, title, ylim) in zip(axs.flatten(), series):
+    ax.plot(time, data, color=green, linewidth=2.5)
+    ax.axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.8)
+    ax.set_title(title)
+    ax.set_ylabel("percent")
+    ax.set_xlim(time[0], time[-1])
+    ax.set_ylim(*ylim)
+    ax.set_xticks(time)
+    ax.grid(False)
+
+axs[1, 0].set_xlabel("Time")
+axs[1, 1].set_xlabel("Time")
+
+plt.subplots_adjust(
+    left=0.08,
+    right=0.98,
+    top=0.90,
+    bottom=0.12,
+    wspace=0.35,
+    hspace=0.55
+)
+
+# Export figure
+plt.savefig("figures/irf_question4_prof_style.pdf", bbox_inches="tight")
+plt.savefig("figures/irf_question4_prof_style.png", dpi=300, bbox_inches="tight")
+
+plt.show()
+
+# Report numerical values
+print("Question 4 IRF values")
+print("time:", time)
+print("r   =", round(r, 4))
+print("pi1 =", round(pi1, 4))
+print("u1  =", round(u1, 4))
+print("y   =", np.round(y, 4))
+print("u   =", np.round(u, 4))
+print("pi  =", np.round(pi, 4))
+print("piW =", np.round(pi_w, 4))
+
 
 # =============================================================================
 # QUESTION 5 — ONE-TIME POSITIVE PRODUCTIVITY SHOCK: OPTIMAL POLICY
 # =============================================================================
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
+# The Taylor-rule path from Question 4 is compared with the optimal allocation
+# for kappa = 0.5 and with the full-employment benchmark for kappa = 0.
 
+# Question-specific calibration
+a0 = 1.0          # positive productivity shock
+phi_pi = 1.5      # Taylor-rule coefficient on inflation
+phi_u = 0.5       # Taylor-rule coefficient on unemployment
+xi = 1.0          # slope of wage Phillips curve
+lam = 0.5         # wage indexation
+beta = 0.95       # discount factor for optimal policy
+
+T = 20            # horizon used for solving optimal policy
+T_plot = 9        # plot periods t=0,1,...,8
+
+# Ensure the figure output directory exists.
+os.makedirs("figures", exist_ok=True)
+
+# Labor-market mappings
+def compute_u_from_pi(pi_path, a_path, xi, lam):
+    """
+    Given inflation pi_t and productivity a_t, compute unemployment implied by
+    the downward nominal wage rigidity.
+
+    u_t = max{0, [lambda*pi_{t-1} - pi_t - (a_t-a_{t-1})]/xi}
+    """
+    n = len(pi_path)
+    u = np.zeros(n)
+
+    pi_lag = 0.0
+    a_lag = 0.0
+
+    for t in range(n):
+        wage_inflation = pi_path[t] + a_path[t] - a_lag
+        lower_bound = lam * pi_lag
+
+        u[t] = max(0.0, (lower_bound - wage_inflation) / xi)
+
+        pi_lag = pi_path[t]
+        a_lag = a_path[t]
+
+    return u
+
+
+def compute_piw(pi_path, a_path):
+    """
+    Compute wage inflation:
+        pi_t^W = pi_t + a_t - a_{t-1}
+    """
+    n = len(pi_path)
+    pi_w = np.zeros(n)
+
+    a_lag = 0.0
+
+    for t in range(n):
+        pi_w[t] = pi_path[t] + a_path[t] - a_lag
+        a_lag = a_path[t]
+
+    return pi_w
+
+
+# Optimal policy for kappa > 0
+def solve_optimal_policy(kappa):
+    """
+    Solve the optimal policy problem over pi_0,...,pi_T.
+    Unemployment is implied by the downward wage constraint.
+    """
+    a_path = np.zeros(T + 1)
+    a_path[0] = a0
+
+    def objective(pi_path):
+        u_path = compute_u_from_pi(pi_path, a_path, xi, lam)
+
+        welfare = 0.0
+        for t in range(T + 1):
+            welfare += (beta ** t) * (
+                a_path[t]
+                - u_path[t]
+                - np.exp(-u_path[t])
+                - 0.5 * kappa * pi_path[t] ** 2
+            )
+
+        return -welfare
+
+    x0 = np.zeros(T + 1)
+    bounds = [(-2.0 * a0, 2.0 * a0) for _ in range(T + 1)]
+
+    result = minimize(
+        objective,
+        x0,
+        method="L-BFGS-B",
+        bounds=bounds,
+        options={"maxiter": 5000, "ftol": 1e-12}
+    )
+
+    if not result.success:
+        print("Warning: optimizer did not fully converge:", result.message)
+
+    pi = result.x
+    u = compute_u_from_pi(pi, a_path, xi, lam)
+    y = a_path - u
+    pi_w = compute_piw(pi, a_path)
+
+    return y, u, pi, pi_w
+
+
+# Taylor-rule benchmark from Question 4
+def solve_taylor_rule_q4():
+    """
+    Taylor-rule transition from Question 4.
+
+    Period 0 is imposed:
+        y_0 = a_0, u_0 = 0, pi_0 = 0, pi_0^W = a_0.
+
+    From period 1 onward, the central bank follows the Taylor rule.
+    """
+    y = np.zeros(T + 1)
+    u = np.zeros(T + 1)
+    pi = np.zeros(T + 1)
+    pi_w = np.zeros(T + 1)
+
+    # Period 0 imposed allocation
+    y[0] = a0
+    u[0] = 0.0
+    pi[0] = 0.0
+    pi_w[0] = a0
+
+    # Stable root r from Question 4
+    B = 1 + phi_u + lam + xi * phi_pi
+    disc = B**2 - 4 * (1 + xi) * (1 + phi_u) * lam
+    r = (B - np.sqrt(disc)) / (2 * (1 + xi))
+
+    # Period 1
+    pi1 = ((1 + phi_u) * a0) / (
+        1 + phi_u + xi * phi_pi + lam - (1 + xi) * r
+    )
+    u1 = (a0 - pi1) / xi
+
+    pi[1] = pi1
+    u[1] = u1
+    y[1] = -u1
+    pi_w[1] = pi1 - a0
+
+    # Periods t >= 2
+    for t in range(2, T + 1):
+        pi[t] = (r ** (t - 1)) * pi1
+        u[t] = ((lam - r) / xi) * (r ** (t - 2)) * pi1
+        y[t] = -u[t]
+        pi_w[t] = pi[t]
+
+    return y, u, pi, pi_w
+
+
+# Full-employment benchmark for kappa = 0
+def solve_optimal_kappa_zero():
+    """
+    When kappa=0, inflation has no welfare cost.
+    The optimal allocation keeps unemployment at zero.
+    We plot one full-employment implementation satisfying the wage constraint
+    with equality.
+    """
+    a_path = np.zeros(T + 1)
+    a_path[0] = a0
+
+    pi = np.zeros(T + 1)
+    u = np.zeros(T + 1)
+    y = np.zeros(T + 1)
+
+    pi_lag = 0.0
+    a_lag = 0.0
+
+    for t in range(T + 1):
+        # Full-employment implementation:
+        # pi_t + a_t - a_{t-1} = lambda*pi_{t-1}
+        pi[t] = lam * pi_lag - (a_path[t] - a_lag)
+
+        u[t] = 0.0
+        y[t] = a_path[t]
+
+        pi_lag = pi[t]
+        a_lag = a_path[t]
+
+    pi_w = compute_piw(pi, a_path)
+
+    return y, u, pi, pi_w
+
+
+# Compute policy paths
+y_tr, u_tr, pi_tr, piw_tr = solve_taylor_rule_q4()
+y_opt05, u_opt05, pi_opt05, piw_opt05 = solve_optimal_policy(kappa=0.5)
+y_opt0, u_opt0, pi_opt0, piw_opt0 = solve_optimal_kappa_zero()
+
+# Restrict the displayed horizon to t = 0,...,8.
+time = np.arange(T_plot)
+
+paths = {
+    "Taylor rule": {
+        "y": y_tr[:T_plot],
+        "u": u_tr[:T_plot],
+        "pi": pi_tr[:T_plot],
+        "piw": piw_tr[:T_plot],
+    },
+    r"Optimal policy, $\kappa=0.5$": {
+        "y": y_opt05[:T_plot],
+        "u": u_opt05[:T_plot],
+        "pi": pi_opt05[:T_plot],
+        "piw": piw_opt05[:T_plot],
+    },
+    r"Optimal policy, $\kappa=0$": {
+        "y": y_opt0[:T_plot],
+        "u": u_opt0[:T_plot],
+        "pi": pi_opt0[:T_plot],
+        "piw": piw_opt0[:T_plot],
+    },
+}
+
+# Figure style
+plt.rcParams.update({
+    "font.family": "serif",
+    "mathtext.fontset": "cm",
+    "font.size": 11,
+    "axes.titlesize": 13,
+    "axes.labelsize": 10,
+    "xtick.labelsize": 9,
+    "ytick.labelsize": 9,
+    "axes.spines.top": True,
+    "axes.spines.right": True,
+    "axes.edgecolor": "black",
+    "axes.linewidth": 0.8,
+    "xtick.direction": "in",
+    "ytick.direction": "in",
+    "figure.facecolor": "white",
+    "axes.facecolor": "white",
+    "savefig.facecolor": "white",
+})
+
+colors = {
+    "Taylor rule": "darkgreen",
+    r"Optimal policy, $\kappa=0.5$": "firebrick",
+    r"Optimal policy, $\kappa=0$": "blue",
+}
+
+fig, axs = plt.subplots(2, 2, figsize=(9, 6))
+
+variables = [
+    ("y", r"Output $y_t$"),
+    ("u", r"Unemployment $u_t$"),
+    ("pi", r"Inflation $\pi_t$"),
+    ("piw", r"Wage inflation $\pi_t^W$"),
+]
+
+for ax, (var, title) in zip(axs.flatten(), variables):
+    for label, data in paths.items():
+        ax.plot(
+            time,
+            data[var],
+            color=colors[label],
+            linewidth=2.0,
+            label=label
+        )
+
+    ax.axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.8)
+    ax.set_title(title)
+    ax.set_ylabel("percent")
+    ax.set_xlim(time[0], time[-1])
+    ax.set_xticks(time)
+    ax.grid(False)
+
+axs[1, 0].set_xlabel("Time")
+axs[1, 1].set_xlabel("Time")
+
+handles, labels = axs[0, 0].get_legend_handles_labels()
+fig.legend(
+    handles,
+    labels,
+    loc="lower center",
+    ncol=3,
+    frameon=False,
+    bbox_to_anchor=(0.5, -0.02)
+)
+
+plt.subplots_adjust(
+    left=0.08,
+    right=0.98,
+    top=0.90,
+    bottom=0.18,
+    wspace=0.35,
+    hspace=0.55
+)
+
+# Export figure
+plt.savefig("figures/irf_question5_prof_style.pdf", bbox_inches="tight")
+plt.savefig("figures/irf_question5_prof_style.png", dpi=300, bbox_inches="tight")
+
+plt.show()
+
+# Report numerical values
+print("Question 5 IRF values")
+print("time:", time)
+
+for label, data in paths.items():
+    print("\n", label)
+    print("y   =", np.round(data["y"], 4))
+    print("u   =", np.round(data["u"], 4))
+    print("pi  =", np.round(data["pi"], 4))
+    print("piW =", np.round(data["piw"], 4))
 # =============================================================================
 # QUESTION 6 — STOCHASTIC MODEL AND NUMERICAL POLICY FUNCTIONS
 # =============================================================================
