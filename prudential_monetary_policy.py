@@ -4,8 +4,8 @@ This script accompanies the Advanced Macroeconomics III project and contains the
 numerical routines used to produce the project's impulse responses, AS-AD diagram,
 dynamic policy functions, long-run simulations, and event studies.
 
-Questions 4 and 5 are intentionally left as placeholders in this version and will
-be added separately.
+Questions 1 through 8 are implemented in sequence, combining analytical responses,
+numerical optimization, dynamic programming, simulations, and event studies.
 
 Model variables are expressed as log-linear deviations unless explicitly converted
 to levels. Figures are exported in both PDF and PNG formats.
@@ -18,6 +18,21 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import RegularGridInterpolator
 from scipy.optimize import minimize
+
+# =============================================================================
+# OUTPUT DIRECTORIES
+# =============================================================================
+
+try:
+    PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    PROJECT_ROOT = os.getcwd()
+
+FIGURES_DIR = os.path.join(PROJECT_ROOT, "figures")
+RESULTS_DIR = os.path.join(PROJECT_ROOT, "results")
+
+os.makedirs(FIGURES_DIR, exist_ok=True)
+os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # =============================================================================
 # QUESTION 1 — ONE-TIME NEGATIVE PRODUCTIVITY SHOCK: TAYLOR RULE
@@ -138,8 +153,15 @@ plt.subplots_adjust(
 )
 
 # Export figure
-plt.savefig("irf_question1.pdf", bbox_inches="tight")
-plt.savefig("irf_question1.png", dpi=300, bbox_inches="tight")
+plt.savefig(
+    os.path.join(FIGURES_DIR, "negative_shock_taylor_rule.pdf"),
+    bbox_inches="tight"
+)
+plt.savefig(
+    os.path.join(FIGURES_DIR, "negative_shock_taylor_rule.png"),
+    dpi=300,
+    bbox_inches="tight"
+)
 
 plt.show()
 
@@ -163,7 +185,13 @@ include_kappa_zero = True   # set False if you only want the kappa > 0 case
 # Solve the impact-period optimum
 # FOC: 1 - exp(-u0*) = kappa * xi * (-a0 - xi*u0*)
 # Domain: 0 <= u0* <= -a0/xi
-def solve_optimal_unemployment_negative_shock(a0, xi, kappa, tolerance=1e-12, max_iterations=10_000):
+def solve_optimal_unemployment_negative_shock(
+    a0,
+    xi,
+    kappa,
+    tolerance=1e-12,
+    max_iterations=10_000
+):
     """
     Solves the optimal unemployment response u0* to a one-time negative
     productivity shock under optimal monetary policy.
@@ -172,7 +200,9 @@ def solve_optimal_unemployment_negative_shock(a0, xi, kappa, tolerance=1e-12, ma
     For kappa = 0, the central bank chooses full employment, u0* = 0.
     """
     if a0 >= 0:
-        raise ValueError("This block is for a negative productivity shock, so a0 must be negative.")
+        raise ValueError(
+            "This block is for a negative productivity shock, so a0 must be negative."
+        )
     if xi <= 0:
         raise ValueError("xi must be strictly positive.")
     if kappa < 0:
@@ -194,7 +224,9 @@ def solve_optimal_unemployment_negative_shock(a0, xi, kappa, tolerance=1e-12, ma
     upper_value = first_order_condition(upper_bound)
 
     if lower_value > 0 or upper_value < 0:
-        raise RuntimeError("The bisection bracket is not valid. Check parameters.")
+        raise RuntimeError(
+            "The bisection bracket is not valid. Check parameters."
+        )
 
     for _ in range(max_iterations):
         midpoint = 0.5 * (lower_bound + upper_bound)
@@ -212,7 +244,15 @@ def solve_optimal_unemployment_negative_shock(a0, xi, kappa, tolerance=1e-12, ma
 
 
 # Construct the optimal-policy response
-def build_optimal_irf_negative_shock(a0, xi, lam, kappa, time, idx_0, idx_1):
+def build_optimal_irf_negative_shock(
+    a0,
+    xi,
+    lam,
+    kappa,
+    time,
+    idx_0,
+    idx_1
+):
     """
     Builds the optimal-policy IRF for y_t, u_t, pi_t and pi_t^W.
     """
@@ -240,12 +280,34 @@ def build_optimal_irf_negative_shock(a0, xi, lam, kappa, time, idx_0, idx_1):
     # Periods t >= 2 are already initialized at zero
     slack_condition_t1 = pi_w_opt[idx_1] >= lam * pi_opt[idx_0]
 
-    return y_opt, u_opt, pi_opt, pi_w_opt, u_star, pi_star, slack_condition_t1
+    return (
+        y_opt,
+        u_opt,
+        pi_opt,
+        pi_w_opt,
+        u_star,
+        pi_star,
+        slack_condition_t1
+    )
 
 
 # Main case: kappa > 0
-y_opt, u_opt, pi_opt, pi_w_opt, u_star, pi_star, slack_condition_opt_t1 = (
-    build_optimal_irf_negative_shock(a0, xi, lam, kappa, time, idx_0, idx_1)
+(
+    y_opt,
+    u_opt,
+    pi_opt,
+    pi_w_opt,
+    u_star,
+    pi_star,
+    slack_condition_opt_t1
+) = build_optimal_irf_negative_shock(
+    a0,
+    xi,
+    lam,
+    kappa,
+    time,
+    idx_0,
+    idx_1
 )
 
 print("\nQuestion 2: optimal policy, kappa > 0")
@@ -262,8 +324,22 @@ print("Implementing nominal rate in t=0: i0* = rho - a0 + u0*")
 
 # Benchmark case: kappa = 0
 if include_kappa_zero:
-    y_opt_k0, u_opt_k0, pi_opt_k0, pi_w_opt_k0, u_star_k0, pi_star_k0, slack_condition_k0_t1 = (
-        build_optimal_irf_negative_shock(a0, xi, lam, 0.0, time, idx_0, idx_1)
+    (
+        y_opt_k0,
+        u_opt_k0,
+        pi_opt_k0,
+        pi_w_opt_k0,
+        u_star_k0,
+        pi_star_k0,
+        slack_condition_k0_t1
+    ) = build_optimal_irf_negative_shock(
+        a0,
+        xi,
+        lam,
+        0.0,
+        time,
+        idx_0,
+        idx_1
     )
 
     print("\nQuestion 2: boundary case, kappa = 0")
@@ -285,10 +361,25 @@ series_comparison = [
     (pi_w, pi_w_opt, r"Wage inflation $\pi_t^W$"),
 ]
 
-for ax, (data_taylor, data_optimal, title) in zip(axs.flatten(), series_comparison):
-    ax.plot(time, data_taylor, color=green, linewidth=2.5, label="Taylor rule")
-    ax.plot(time, data_optimal, color="#990001", linewidth=2.5, linestyle="-",
-        label=rf"Optimal policy, $\kappa={kappa}$")
+for ax, (data_taylor, data_optimal, title) in zip(
+    axs.flatten(),
+    series_comparison
+):
+    ax.plot(
+        time,
+        data_taylor,
+        color=green,
+        linewidth=2.5,
+        label="Taylor rule"
+    )
+    ax.plot(
+        time,
+        data_optimal,
+        color="#990001",
+        linewidth=2.5,
+        linestyle="-",
+        label=rf"Optimal policy, $\kappa={kappa}$"
+    )
 
     if include_kappa_zero:
         if title == r"Output $y_t$":
@@ -300,10 +391,22 @@ for ax, (data_taylor, data_optimal, title) in zip(axs.flatten(), series_comparis
         else:
             data_k0 = pi_w_opt_k0
 
-        ax.plot(time, data_k0, color="blue", linewidth=2.0, linestyle="-",
-        label=r"Optimal policy, $\kappa=0$")
+        ax.plot(
+            time,
+            data_k0,
+            color="blue",
+            linewidth=2.0,
+            linestyle="-",
+            label=r"Optimal policy, $\kappa=0$"
+        )
 
-    ax.axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.8)
+    ax.axhline(
+        0,
+        color="black",
+        linewidth=0.8,
+        linestyle="--",
+        alpha=0.8
+    )
 
     ax.set_title(title, pad=10)
     ax.set_ylabel("linear deviation")
@@ -330,7 +433,13 @@ axs[1, 1].set_xlabel("Time")
 
 # Single legend
 handles, labels = axs[0, 0].get_legend_handles_labels()
-fig.legend(handles, labels, loc="lower center", ncol=3, frameon=False)
+fig.legend(
+    handles,
+    labels,
+    loc="lower center",
+    ncol=3,
+    frameon=False
+)
 
 plt.subplots_adjust(
     left=0.08,
@@ -341,8 +450,15 @@ plt.subplots_adjust(
     hspace=0.55
 )
 
-plt.savefig("irf_question2.pdf", bbox_inches="tight")
-plt.savefig("irf_question2.png", dpi=300, bbox_inches="tight")
+plt.savefig(
+    os.path.join(FIGURES_DIR, "negative_shock_optimal_policy.pdf"),
+    bbox_inches="tight"
+)
+plt.savefig(
+    os.path.join(FIGURES_DIR, "negative_shock_optimal_policy.png"),
+    dpi=300,
+    bbox_inches="tight"
+)
 
 plt.show()
 
@@ -408,8 +524,16 @@ def post_shock_as_price(output_grid):
 
 # AD curves calibrated to pass through the relevant equilibrium point.
 # This is useful for plotting because each AD curve satisfies P * Y = constant.
-def aggregate_demand_price(output_grid, equilibrium_output, equilibrium_price):
-    return (equilibrium_price * equilibrium_output) / output_grid
+def aggregate_demand_price(
+    output_grid,
+    equilibrium_output,
+    equilibrium_price
+):
+    return (
+        equilibrium_price
+        * equilibrium_output
+        / output_grid
+    )
 
 
 # Plotting grids
@@ -426,11 +550,23 @@ initial_as = initial_as_price(initial_as_grid)
 post_shock_as = post_shock_as_price(post_shock_as_grid)
 
 # Aggregate-demand curves
-ad_taylor = aggregate_demand_price(output_grid, Y_taylor, P_taylor)
-ad_optimal = aggregate_demand_price(output_grid, Y_optimal, P_optimal)
+ad_taylor = aggregate_demand_price(
+    output_grid,
+    Y_taylor,
+    P_taylor
+)
+ad_optimal = aggregate_demand_price(
+    output_grid,
+    Y_optimal,
+    P_optimal
+)
 
 if include_kappa_zero:
-    ad_optimal_k0 = aggregate_demand_price(output_grid, Y_optimal_k0, P_optimal_k0)
+    ad_optimal_k0 = aggregate_demand_price(
+        output_grid,
+        Y_optimal_k0,
+        P_optimal_k0
+    )
 
 
 # Figure
@@ -449,6 +585,7 @@ initial_as_line, = ax.plot(
     linestyle="--",
     label=r"Initial AS"
 )
+
 ax.vlines(
     1.0,
     1.0,
@@ -466,6 +603,7 @@ post_shock_as_line, = ax.plot(
     linewidth=2.8,
     label=r"Post-shock AS"
 )
+
 ax.vlines(
     A_0,
     1.0 / A_0,
@@ -504,12 +642,42 @@ if include_kappa_zero:
     )
 
 # Equilibrium markers
-ax.scatter(Y_initial, P_initial, color="black", marker="o", s=50, zorder=5)
-ax.scatter(Y_taylor, P_taylor, color="black", marker="o", s=50, zorder=5)
-ax.scatter(Y_optimal, P_optimal, color="black", marker="o", s=50, zorder=5)
+ax.scatter(
+    Y_initial,
+    P_initial,
+    color="black",
+    marker="o",
+    s=50,
+    zorder=5
+)
+
+ax.scatter(
+    Y_taylor,
+    P_taylor,
+    color="black",
+    marker="o",
+    s=50,
+    zorder=5
+)
+
+ax.scatter(
+    Y_optimal,
+    P_optimal,
+    color="black",
+    marker="o",
+    s=50,
+    zorder=5
+)
 
 if include_kappa_zero:
-    ax.scatter(Y_optimal_k0, P_optimal_k0, color="black", marker="o", s=50, zorder=5)
+    ax.scatter(
+        Y_optimal_k0,
+        P_optimal_k0,
+        color="black",
+        marker="o",
+        s=50,
+        zorder=5
+    )
 
 # Equilibrium labels
 ax.annotate(
@@ -555,6 +723,7 @@ ax.set_ylim(0.0, 3.4)
 
 # Figure formatting
 ax.grid(False)
+
 legend_handles = [
     initial_as_line,
     post_shock_as_line,
@@ -575,8 +744,15 @@ ax.legend(
 plt.tight_layout()
 
 # Export figure
-plt.savefig("as_ad_question3.pdf", bbox_inches="tight")
-plt.savefig("as_ad_question3.png", dpi=300, bbox_inches="tight")
+plt.savefig(
+    os.path.join(FIGURES_DIR, "negative_shock_as_ad.pdf"),
+    bbox_inches="tight"
+)
+plt.savefig(
+    os.path.join(FIGURES_DIR, "negative_shock_as_ad.png"),
+    dpi=300,
+    bbox_inches="tight"
+)
 
 plt.show()
 
@@ -584,9 +760,24 @@ plt.show()
 # Report equilibrium values
 print("\nAS-AD diagram values")
 print("A_0 =", round(A_0, 6))
-print("Initial equilibrium: Y =", round(Y_initial, 6), ", P =", round(P_initial, 6))
-print("Taylor-rule equilibrium: Y =", round(Y_taylor, 6), ", P =", round(P_taylor, 6))
-print("Optimal-policy equilibrium, kappa > 0: Y =", round(Y_optimal, 6), ", P =", round(P_optimal, 6))
+print(
+    "Initial equilibrium: Y =",
+    round(Y_initial, 6),
+    ", P =",
+    round(P_initial, 6)
+)
+print(
+    "Taylor-rule equilibrium: Y =",
+    round(Y_taylor, 6),
+    ", P =",
+    round(P_taylor, 6)
+)
+print(
+    "Optimal-policy equilibrium, kappa > 0: Y =",
+    round(Y_optimal, 6),
+    ", P =",
+    round(P_optimal, 6)
+)
 
 if include_kappa_zero:
     print(
@@ -613,7 +804,7 @@ lam = 0.5         # wage indexation
 T = 8             # plot periods t=0,...,8
 
 # Ensure the figure output directory exists.
-os.makedirs("figures", exist_ok=True)
+os.makedirs(FIGURES_DIR, exist_ok=True)
 
 # Initialize transition paths
 time = np.arange(T + 1)
@@ -685,7 +876,13 @@ series = [
 
 for ax, (data, title, ylim) in zip(axs.flatten(), series):
     ax.plot(time, data, color=green, linewidth=2.5)
-    ax.axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.8)
+    ax.axhline(
+        0,
+        color="black",
+        linewidth=0.8,
+        linestyle="--",
+        alpha=0.8
+    )
     ax.set_title(title)
     ax.set_ylabel("percent")
     ax.set_xlim(time[0], time[-1])
@@ -706,8 +903,15 @@ plt.subplots_adjust(
 )
 
 # Export figure
-plt.savefig("figures/irf_question4_prof_style.pdf", bbox_inches="tight")
-plt.savefig("figures/irf_question4_prof_style.png", dpi=300, bbox_inches="tight")
+plt.savefig(
+    os.path.join(FIGURES_DIR, "positive_shock_taylor_rule.pdf"),
+    bbox_inches="tight"
+)
+plt.savefig(
+    os.path.join(FIGURES_DIR, "positive_shock_taylor_rule.png"),
+    dpi=300,
+    bbox_inches="tight"
+)
 
 plt.show()
 
@@ -741,7 +945,7 @@ T = 20            # horizon used for solving optimal policy
 T_plot = 9        # plot periods t=0,1,...,8
 
 # Ensure the figure output directory exists.
-os.makedirs("figures", exist_ok=True)
+os.makedirs(FIGURES_DIR, exist_ok=True)
 
 # Labor-market mappings
 def compute_u_from_pi(pi_path, a_path, xi, lam):
@@ -761,7 +965,10 @@ def compute_u_from_pi(pi_path, a_path, xi, lam):
         wage_inflation = pi_path[t] + a_path[t] - a_lag
         lower_bound = lam * pi_lag
 
-        u[t] = max(0.0, (lower_bound - wage_inflation) / xi)
+        u[t] = max(
+            0.0,
+            (lower_bound - wage_inflation) / xi
+        )
 
         pi_lag = pi_path[t]
         a_lag = a_path[t]
@@ -796,9 +1003,15 @@ def solve_optimal_policy(kappa):
     a_path[0] = a0
 
     def objective(pi_path):
-        u_path = compute_u_from_pi(pi_path, a_path, xi, lam)
+        u_path = compute_u_from_pi(
+            pi_path,
+            a_path,
+            xi,
+            lam
+        )
 
         welfare = 0.0
+
         for t in range(T + 1):
             welfare += (beta ** t) * (
                 a_path[t]
@@ -810,18 +1023,27 @@ def solve_optimal_policy(kappa):
         return -welfare
 
     x0 = np.zeros(T + 1)
-    bounds = [(-2.0 * a0, 2.0 * a0) for _ in range(T + 1)]
+    bounds = [
+        (-2.0 * a0, 2.0 * a0)
+        for _ in range(T + 1)
+    ]
 
     result = minimize(
         objective,
         x0,
         method="L-BFGS-B",
         bounds=bounds,
-        options={"maxiter": 5000, "ftol": 1e-12}
+        options={
+            "maxiter": 5000,
+            "ftol": 1e-12
+        }
     )
 
     if not result.success:
-        print("Warning: optimizer did not fully converge:", result.message)
+        print(
+            "Warning: optimizer did not fully converge:",
+            result.message
+        )
 
     pi = result.x
     u = compute_u_from_pi(pi, a_path, xi, lam)
@@ -854,12 +1076,22 @@ def solve_taylor_rule_q4():
 
     # Stable root r from Question 4
     B = 1 + phi_u + lam + xi * phi_pi
-    disc = B**2 - 4 * (1 + xi) * (1 + phi_u) * lam
-    r = (B - np.sqrt(disc)) / (2 * (1 + xi))
+    disc = (
+        B**2
+        - 4 * (1 + xi) * (1 + phi_u) * lam
+    )
+    r = (
+        B
+        - np.sqrt(disc)
+    ) / (2 * (1 + xi))
 
     # Period 1
     pi1 = ((1 + phi_u) * a0) / (
-        1 + phi_u + xi * phi_pi + lam - (1 + xi) * r
+        1
+        + phi_u
+        + xi * phi_pi
+        + lam
+        - (1 + xi) * r
     )
     u1 = (a0 - pi1) / xi
 
@@ -871,7 +1103,11 @@ def solve_taylor_rule_q4():
     # Periods t >= 2
     for t in range(2, T + 1):
         pi[t] = (r ** (t - 1)) * pi1
-        u[t] = ((lam - r) / xi) * (r ** (t - 2)) * pi1
+        u[t] = (
+            ((lam - r) / xi)
+            * (r ** (t - 2))
+            * pi1
+        )
         y[t] = -u[t]
         pi_w[t] = pi[t]
 
@@ -899,7 +1135,10 @@ def solve_optimal_kappa_zero():
     for t in range(T + 1):
         # Full-employment implementation:
         # pi_t + a_t - a_{t-1} = lambda*pi_{t-1}
-        pi[t] = lam * pi_lag - (a_path[t] - a_lag)
+        pi[t] = (
+            lam * pi_lag
+            - (a_path[t] - a_lag)
+        )
 
         u[t] = 0.0
         y[t] = a_path[t]
@@ -914,8 +1153,14 @@ def solve_optimal_kappa_zero():
 
 # Compute policy paths
 y_tr, u_tr, pi_tr, piw_tr = solve_taylor_rule_q4()
-y_opt05, u_opt05, pi_opt05, piw_opt05 = solve_optimal_policy(kappa=0.5)
-y_opt0, u_opt0, pi_opt0, piw_opt0 = solve_optimal_kappa_zero()
+
+y_opt05, u_opt05, pi_opt05, piw_opt05 = (
+    solve_optimal_policy(kappa=0.5)
+)
+
+y_opt0, u_opt0, pi_opt0, piw_opt0 = (
+    solve_optimal_kappa_zero()
+)
 
 # Restrict the displayed horizon to t = 0,...,8.
 time = np.arange(T_plot)
@@ -967,7 +1212,11 @@ colors = {
     r"Optimal policy, $\kappa=0$": "blue",
 }
 
-fig, axs = plt.subplots(2, 2, figsize=(9, 6))
+fig, axs = plt.subplots(
+    2,
+    2,
+    figsize=(9, 6)
+)
 
 variables = [
     ("y", r"Output $y_t$"),
@@ -976,7 +1225,10 @@ variables = [
     ("piw", r"Wage inflation $\pi_t^W$"),
 ]
 
-for ax, (var, title) in zip(axs.flatten(), variables):
+for ax, (var, title) in zip(
+    axs.flatten(),
+    variables
+):
     for label, data in paths.items():
         ax.plot(
             time,
@@ -986,7 +1238,14 @@ for ax, (var, title) in zip(axs.flatten(), variables):
             label=label
         )
 
-    ax.axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.8)
+    ax.axhline(
+        0,
+        color="black",
+        linewidth=0.8,
+        linestyle="--",
+        alpha=0.8
+    )
+
     ax.set_title(title)
     ax.set_ylabel("percent")
     ax.set_xlim(time[0], time[-1])
@@ -997,6 +1256,7 @@ axs[1, 0].set_xlabel("Time")
 axs[1, 1].set_xlabel("Time")
 
 handles, labels = axs[0, 0].get_legend_handles_labels()
+
 fig.legend(
     handles,
     labels,
@@ -1016,8 +1276,22 @@ plt.subplots_adjust(
 )
 
 # Export figure
-plt.savefig("figures/irf_question5_prof_style.pdf", bbox_inches="tight")
-plt.savefig("figures/irf_question5_prof_style.png", dpi=300, bbox_inches="tight")
+plt.savefig(
+    os.path.join(
+        FIGURES_DIR,
+        "positive_shock_optimal_policy.pdf"
+    ),
+    bbox_inches="tight"
+)
+
+plt.savefig(
+    os.path.join(
+        FIGURES_DIR,
+        "positive_shock_optimal_policy.png"
+    ),
+    dpi=300,
+    bbox_inches="tight"
+)
 
 plt.show()
 
@@ -1031,6 +1305,8 @@ for label, data in paths.items():
     print("u   =", np.round(data["u"], 4))
     print("pi  =", np.round(data["pi"], 4))
     print("piW =", np.round(data["piw"], 4))
+
+
 # =============================================================================
 # QUESTION 6 — STOCHASTIC MODEL AND NUMERICAL POLICY FUNCTIONS
 # =============================================================================
@@ -1121,34 +1397,69 @@ def solve_q6_policy_functions(
 
     if not (0 < beta < 1):
         raise ValueError("beta must be between 0 and 1.")
+
     if not (0 <= rho_a < 1):
         raise ValueError("rho_a must be in [0, 1).")
+
     if sigma <= 0:
         raise ValueError("sigma must be strictly positive.")
+
     if xi <= 0:
         raise ValueError("xi must be strictly positive.")
+
     if not (0 <= lam < 1):
         raise ValueError("lambda must be in [0, 1).")
+
     if kappa <= 0:
-        raise ValueError("This numerical block assumes kappa > 0.")
+        raise ValueError(
+            "This numerical block assumes kappa > 0."
+        )
 
     # State grids
-    stationary_std_a = sigma / np.sqrt(1.0 - rho_a**2)
+    stationary_std_a = sigma / np.sqrt(
+        1.0 - rho_a**2
+    )
 
     a_min = -a_grid_width * stationary_std_a
     a_max = a_grid_width * stationary_std_a
 
-    a_grid = np.linspace(a_min, a_max, n_a)
+    a_grid = np.linspace(
+        a_min,
+        a_max,
+        n_a
+    )
+
     a_lag_grid = a_grid.copy()
 
-    pi_lag_grid = np.linspace(pi_grid_min, pi_grid_max, n_pi)
-    pi_choices = np.linspace(pi_grid_min, pi_grid_max, n_pi_choices)
+    pi_lag_grid = np.linspace(
+        pi_grid_min,
+        pi_grid_max,
+        n_pi
+    )
+
+    pi_choices = np.linspace(
+        pi_grid_min,
+        pi_grid_max,
+        n_pi_choices
+    )
 
     # Gaussian quadrature for epsilon_{t+1}
-    hermite_nodes, hermite_weights = np.polynomial.hermite.hermgauss(n_quadrature)
+    hermite_nodes, hermite_weights = (
+        np.polynomial.hermite.hermgauss(
+            n_quadrature
+        )
+    )
 
-    shock_nodes = np.sqrt(2.0) * sigma * hermite_nodes
-    shock_weights = hermite_weights / np.sqrt(np.pi)
+    shock_nodes = (
+        np.sqrt(2.0)
+        * sigma
+        * hermite_nodes
+    )
+
+    shock_weights = (
+        hermite_weights
+        / np.sqrt(np.pi)
+    )
 
     # Flatten the state space for vectorized evaluation
     A_now, A_lag, PI_lag = np.meshgrid(
@@ -1192,73 +1503,156 @@ def solve_q6_policy_functions(
     )
 
     # Value function iteration
-    value_function = np.zeros((n_a, n_a, n_pi))
-    best_choice_indices = np.zeros(number_of_states, dtype=int)
+    value_function = np.zeros(
+        (n_a, n_a, n_pi)
+    )
+
+    best_choice_indices = np.zeros(
+        number_of_states,
+        dtype=int
+    )
 
     for iteration in range(max_iterations):
 
         interpolator = RegularGridInterpolator(
-            (a_grid, a_lag_grid, pi_lag_grid),
+            (
+                a_grid,
+                a_lag_grid,
+                pi_lag_grid
+            ),
             value_function,
             bounds_error=False,
             fill_value=None
         )
 
         expected_continuation_value = np.zeros(
-            (number_of_states, number_of_choices)
+            (
+                number_of_states,
+                number_of_choices
+            )
         )
 
-        for shock, weight in zip(shock_nodes, shock_weights):
+        for shock, weight in zip(
+            shock_nodes,
+            shock_weights
+        ):
 
-            next_a = rho_a * current_a + shock
+            next_a = (
+                rho_a * current_a
+                + shock
+            )
 
             # Clipping avoids extrapolation outside the numerical state grid.
-            next_a_clipped = np.clip(next_a, a_grid[0], a_grid[-1])
-            current_a_clipped = np.clip(current_a, a_lag_grid[0], a_lag_grid[-1])
+            next_a_clipped = np.clip(
+                next_a,
+                a_grid[0],
+                a_grid[-1]
+            )
 
-            interpolation_points = np.empty((number_of_states * number_of_choices, 3))
+            current_a_clipped = np.clip(
+                current_a,
+                a_lag_grid[0],
+                a_lag_grid[-1]
+            )
 
-            interpolation_points[:, 0] = np.repeat(next_a_clipped, number_of_choices)
-            interpolation_points[:, 1] = np.repeat(current_a_clipped, number_of_choices)
-            interpolation_points[:, 2] = np.tile(pi_choices, number_of_states)
+            interpolation_points = np.empty(
+                (
+                    number_of_states
+                    * number_of_choices,
+                    3
+                )
+            )
 
-            continuation_values = interpolator(interpolation_points).reshape(
+            interpolation_points[:, 0] = np.repeat(
+                next_a_clipped,
+                number_of_choices
+            )
+
+            interpolation_points[:, 1] = np.repeat(
+                current_a_clipped,
+                number_of_choices
+            )
+
+            interpolation_points[:, 2] = np.tile(
+                pi_choices,
+                number_of_states
+            )
+
+            continuation_values = interpolator(
+                interpolation_points
+            ).reshape(
                 number_of_states,
                 number_of_choices
             )
 
-            expected_continuation_value += weight * continuation_values
+            expected_continuation_value += (
+                weight
+                * continuation_values
+            )
 
-        objective_by_choice = flow_payoff_by_choice + beta * expected_continuation_value
+        objective_by_choice = (
+            flow_payoff_by_choice
+            + beta
+            * expected_continuation_value
+        )
 
-        best_choice_indices = np.argmax(objective_by_choice, axis=1)
+        best_choice_indices = np.argmax(
+            objective_by_choice,
+            axis=1
+        )
+
         new_value_flat = objective_by_choice[
             np.arange(number_of_states),
             best_choice_indices
         ]
 
         max_difference = np.max(
-            np.abs(new_value_flat - value_function.ravel())
+            np.abs(
+                new_value_flat
+                - value_function.ravel()
+            )
         )
 
-        value_function = new_value_flat.reshape(n_a, n_a, n_pi)
+        value_function = new_value_flat.reshape(
+            n_a,
+            n_a,
+            n_pi
+        )
 
         if iteration % print_every == 0:
-            print(f"Iteration {iteration:4d}: max difference = {max_difference:.6e}")
+            print(
+                f"Iteration {iteration:4d}: "
+                f"max difference = {max_difference:.6e}"
+            )
 
         if max_difference < tolerance:
-            print(f"Converged after {iteration} iterations. Max difference = {max_difference:.6e}")
+            print(
+                f"Converged after {iteration} iterations. "
+                f"Max difference = {max_difference:.6e}"
+            )
             break
 
     # Recover policy functions
-    policy_pi_flat = pi_choices[best_choice_indices]
+    policy_pi_flat = pi_choices[
+        best_choice_indices
+    ]
+
     policy_u_flat = unemployment_by_choice[
         np.arange(number_of_states),
         best_choice_indices
     ]
 
-    policy_pi = policy_pi_flat.reshape(n_a, n_a, n_pi)
-    policy_u = policy_u_flat.reshape(n_a, n_a, n_pi)
+    policy_pi = policy_pi_flat.reshape(
+        n_a,
+        n_a,
+        n_pi
+    )
+
+    policy_u = policy_u_flat.reshape(
+        n_a,
+        n_a,
+        n_pi
+    )
 
     # Numerical validation
     wage_constraint = (
@@ -1269,20 +1663,51 @@ def solve_q6_policy_functions(
         + xi * policy_u
     )
 
-    complementarity = policy_u * wage_constraint
+    complementarity = (
+        policy_u
+        * wage_constraint
+    )
 
-    lower_boundary_share = np.mean(policy_pi_flat == pi_choices[0])
-    upper_boundary_share = np.mean(policy_pi_flat == pi_choices[-1])
+    lower_boundary_share = np.mean(
+        policy_pi_flat
+        == pi_choices[0]
+    )
+
+    upper_boundary_share = np.mean(
+        policy_pi_flat
+        == pi_choices[-1]
+    )
 
     print("\nNumerical checks")
-    print("Minimum wage-constraint residual:", np.min(wage_constraint))
-    print("Maximum complementarity residual:", np.max(np.abs(complementarity)))
-    print("Share at lower pi-choice boundary:", round(lower_boundary_share, 4))
-    print("Share at upper pi-choice boundary:", round(upper_boundary_share, 4))
+    print(
+        "Minimum wage-constraint residual:",
+        np.min(wage_constraint)
+    )
+    print(
+        "Maximum complementarity residual:",
+        np.max(np.abs(complementarity))
+    )
+    print(
+        "Share at lower pi-choice boundary:",
+        round(lower_boundary_share, 4)
+    )
+    print(
+        "Share at upper pi-choice boundary:",
+        round(upper_boundary_share, 4)
+    )
 
-    if lower_boundary_share > 0.01 or upper_boundary_share > 0.01:
-        print("\nWarning: the policy function often hits the pi-choice boundary.")
-        print("Consider widening pi_grid_min / pi_grid_max or increasing kappa.")
+    if (
+        lower_boundary_share > 0.01
+        or upper_boundary_share > 0.01
+    ):
+        print(
+            "\nWarning: the policy function often "
+            "hits the pi-choice boundary."
+        )
+        print(
+            "Consider widening pi_grid_min / "
+            "pi_grid_max or increasing kappa."
+        )
 
     return {
         "value_function": value_function,
@@ -1334,7 +1759,11 @@ q6_solution = solve_q6_policy_functions(
 # Plot policy-function slices
 
 def nearest_index(grid, value):
-    return int(np.argmin(np.abs(grid - value)))
+    return int(
+        np.argmin(
+            np.abs(grid - value)
+        )
+    )
 
 
 def plot_q6_inflation_policy_slices(q6_results):
@@ -1354,20 +1783,59 @@ def plot_q6_inflation_policy_slices(q6_results):
     policy_pi = q6_results["policy_pi"]
     parameters = q6_results["parameters"]
 
-    zero_a_lag_index = nearest_index(a_lag_grid, 0.0)
-    zero_pi_lag_index = nearest_index(pi_lag_grid, 0.0)
+    zero_a_lag_index = nearest_index(
+        a_lag_grid,
+        0.0
+    )
 
-    stationary_std_a = parameters["sigma"] / np.sqrt(1.0 - parameters["rho_a"]**2)
+    zero_pi_lag_index = nearest_index(
+        pi_lag_grid,
+        0.0
+    )
+
+    stationary_std_a = (
+        parameters["sigma"]
+        / np.sqrt(
+            1.0
+            - parameters["rho_a"]**2
+        )
+    )
 
     # Slices over lagged productivity
-    a_lag_values = [-stationary_std_a, 0.0, stationary_std_a]
-    a_lag_indices = [nearest_index(a_lag_grid, value) for value in a_lag_values]
+    a_lag_values = [
+        -stationary_std_a,
+        0.0,
+        stationary_std_a
+    ]
+
+    a_lag_indices = [
+        nearest_index(
+            a_lag_grid,
+            value
+        )
+        for value in a_lag_values
+    ]
 
     # Slices over lagged inflation
-    pi_lag_values = [-0.10, 0.0, 0.10]
-    pi_lag_indices = [nearest_index(pi_lag_grid, value) for value in pi_lag_values]
+    pi_lag_values = [
+        -0.10,
+        0.0,
+        0.10
+    ]
 
-    fig, axs = plt.subplots(1, 2, figsize=(11, 4.8))
+    pi_lag_indices = [
+        nearest_index(
+            pi_lag_grid,
+            value
+        )
+        for value in pi_lag_values
+    ]
+
+    fig, axs = plt.subplots(
+        1,
+        2,
+        figsize=(11, 4.8)
+    )
 
     # Panel 1: varying lagged productivity
     for index, color, linestyle in zip(
@@ -1379,17 +1847,35 @@ def plot_q6_inflation_policy_slices(q6_results):
 
         axs[0].plot(
             a_grid,
-            policy_pi[:, index, zero_pi_lag_index],
+            policy_pi[
+                :,
+                index,
+                zero_pi_lag_index
+            ],
             color=color,
             linestyle=linestyle,
             linewidth=2.5,
             label=rf"$a_{{t-1}}={value:.2f}$"
         )
 
-    axs[0].axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.8)
-    axs[0].set_title(r"Varying $a_{t-1}$, holding $\pi_{t-1}=0$", pad=10)
-    axs[0].set_xlabel(r"Current productivity $a_t$")
-    axs[0].set_ylabel(r"Optimal inflation $\pi(a_t,a_{t-1},\pi_{t-1})$")
+    axs[0].axhline(
+        0,
+        color="black",
+        linewidth=0.8,
+        linestyle="--",
+        alpha=0.8
+    )
+
+    axs[0].set_title(
+        r"Varying $a_{t-1}$, holding $\pi_{t-1}=0$",
+        pad=10
+    )
+    axs[0].set_xlabel(
+        r"Current productivity $a_t$"
+    )
+    axs[0].set_ylabel(
+        r"Optimal inflation $\pi(a_t,a_{t-1},\pi_{t-1})$"
+    )
 
     # Panel 2: varying lagged inflation
     for index, color, linestyle in zip(
@@ -1401,17 +1887,35 @@ def plot_q6_inflation_policy_slices(q6_results):
 
         axs[1].plot(
             a_grid,
-            policy_pi[:, zero_a_lag_index, index],
+            policy_pi[
+                :,
+                zero_a_lag_index,
+                index
+            ],
             color=color,
             linestyle=linestyle,
             linewidth=2.5,
             label=rf"$\pi_{{t-1}}={value:.2f}$"
         )
 
-    axs[1].axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.8)
-    axs[1].set_title(r"Varying $\pi_{t-1}$, holding $a_{t-1}=0$", pad=10)
-    axs[1].set_xlabel(r"Current productivity $a_t$")
-    axs[1].set_ylabel(r"Optimal inflation $\pi(a_t,a_{t-1},\pi_{t-1})$")
+    axs[1].axhline(
+        0,
+        color="black",
+        linewidth=0.8,
+        linestyle="--",
+        alpha=0.8
+    )
+
+    axs[1].set_title(
+        r"Varying $\pi_{t-1}$, holding $a_{t-1}=0$",
+        pad=10
+    )
+    axs[1].set_xlabel(
+        r"Current productivity $a_t$"
+    )
+    axs[1].set_ylabel(
+        r"Optimal inflation $\pi(a_t,a_{t-1},\pi_{t-1})$"
+    )
 
     for ax in axs:
         ax.grid(False)
@@ -1441,26 +1945,55 @@ def plot_q6_inflation_policy_slices(q6_results):
         wspace=0.32
     )
 
-    plt.savefig("policy_question6_pi_slices.pdf", bbox_inches="tight")
-    plt.savefig("policy_question6_pi_slices.png", dpi=300, bbox_inches="tight")
+    plt.savefig(
+        os.path.join(
+            FIGURES_DIR,
+            "optimal_inflation_policy.pdf"
+        ),
+        bbox_inches="tight"
+    )
+
+    plt.savefig(
+        os.path.join(
+            FIGURES_DIR,
+            "optimal_inflation_policy.png"
+        ),
+        dpi=300,
+        bbox_inches="tight"
+    )
 
     plt.show()
 
 
-plot_q6_inflation_policy_slices(q6_solution)
+plot_q6_inflation_policy_slices(
+    q6_solution
+)
 
 
 # Diagnostics
 
 print("\nQuestion 6 parameters")
+
 for key, value in q6_solution["parameters"].items():
     print(f"{key}: {value}")
 
 print("\nPolicy function ranges")
-print("pi min:", np.min(q6_solution["policy_pi"]))
-print("pi max:", np.max(q6_solution["policy_pi"]))
-print("u min:", np.min(q6_solution["policy_u"]))
-print("u max:", np.max(q6_solution["policy_u"]))
+print(
+    "pi min:",
+    np.min(q6_solution["policy_pi"])
+)
+print(
+    "pi max:",
+    np.max(q6_solution["policy_pi"])
+)
+print(
+    "u min:",
+    np.min(q6_solution["policy_u"])
+)
+print(
+    "u max:",
+    np.max(q6_solution["policy_u"])
+)
 
 
 # =============================================================================
@@ -1468,6 +2001,7 @@ print("u max:", np.max(q6_solution["policy_u"]))
 # =============================================================================
 # No additional numerical routine is required here. The discussion in Question 7
 # is based on the policy-function slices generated in Question 6.
+
 
 # =============================================================================
 # QUESTION 8 — PRUDENTIAL VS. NO-PRUDENTIAL MONETARY POLICY
@@ -1507,7 +2041,11 @@ def solve_myopic_no_prudential_policy(
         pi_t = b_t - xi*u_t.
     """
 
-    b = lam * pi_lag - a_now + a_lag
+    b = (
+        lam * pi_lag
+        - a_now
+        + a_lag
+    )
 
     # Full employment is feasible with zero inflation.
     if b <= 0.0:
@@ -1524,16 +2062,28 @@ def solve_myopic_no_prudential_policy(
     upper = b / xi
 
     def foc(u):
-        return 1.0 - np.exp(-u) - kappa * xi * (b - xi * u)
+        return (
+            1.0
+            - np.exp(-u)
+            - kappa
+            * xi
+            * (b - xi * u)
+        )
 
     f_lower = foc(lower)
     f_upper = foc(upper)
 
     if f_lower > 0.0 or f_upper < 0.0:
-        raise RuntimeError("Invalid bisection bracket in the no-prudential policy.")
+        raise RuntimeError(
+            "Invalid bisection bracket "
+            "in the no-prudential policy."
+        )
 
     for _ in range(max_iterations):
-        midpoint = 0.5 * (lower + upper)
+        midpoint = (
+            0.5
+            * (lower + upper)
+        )
         f_midpoint = foc(midpoint)
 
         if abs(f_midpoint) < tolerance:
@@ -1545,9 +2095,15 @@ def solve_myopic_no_prudential_policy(
         else:
             lower = midpoint
     else:
-        u_star = 0.5 * (lower + upper)
+        u_star = (
+            0.5
+            * (lower + upper)
+        )
 
-    pi_star = max(0.0, b - xi * u_star)
+    pi_star = max(
+        0.0,
+        b - xi * u_star
+    )
 
     return pi_star, u_star, b
 
@@ -1585,27 +2141,55 @@ def simulate_question8_unconditional_moments(
 
     # Interpolate the optimal prudential inflation policy.
     op_pi_interpolator = RegularGridInterpolator(
-        (a_grid, a_lag_grid, pi_lag_grid),
+        (
+            a_grid,
+            a_lag_grid,
+            pi_lag_grid
+        ),
         policy_pi,
         bounds_error=False,
         fill_value=None
     )
 
-    total_T = simulation_T + burn_in
+    total_T = (
+        simulation_T
+        + burn_in
+    )
+
     rng = np.random.default_rng(seed)
 
     # Simulated productivity path
     # a_path[t] is a_{t-1}; a_path[t+1] is a_t in the loop below.
     # Starting from the stationary distribution reduces the importance of burn-in.
-    stationary_std_a = sigma / np.sqrt(1.0 - rho_a**2)
+    stationary_std_a = (
+        sigma
+        / np.sqrt(
+            1.0
+            - rho_a**2
+        )
+    )
 
-    a_path = np.empty(total_T + 1)
-    a_path[0] = rng.normal(0.0, stationary_std_a)
+    a_path = np.empty(
+        total_T + 1
+    )
 
-    shocks = rng.normal(0.0, sigma, size=total_T)
+    a_path[0] = rng.normal(
+        0.0,
+        stationary_std_a
+    )
+
+    shocks = rng.normal(
+        0.0,
+        sigma,
+        size=total_T
+    )
 
     for t in range(total_T):
-        a_path[t + 1] = rho_a * a_path[t] + shocks[t]
+        a_path[t + 1] = (
+            rho_a
+            * a_path[t]
+            + shocks[t]
+        )
 
     # Allocate simulation arrays
     variables = [
@@ -1619,8 +2203,15 @@ def simulate_question8_unconditional_moments(
         "wage_pressure"
     ]
 
-    op = {name: np.empty(total_T) for name in variables}
-    npol = {name: np.empty(total_T) for name in variables}
+    op = {
+        name: np.empty(total_T)
+        for name in variables
+    }
+
+    npol = {
+        name: np.empty(total_T)
+        for name in variables
+    }
 
     pi_lag_op = 0.0
     pi_lag_np = 0.0
@@ -1634,34 +2225,87 @@ def simulate_question8_unconditional_moments(
         a_now = a_path[t + 1]
 
         # OP: optimal prudential policy
-        raw_state = np.array([a_now, a_lag, pi_lag_op])
-
-        clipped_state = np.array([
-            np.clip(a_now, a_grid[0], a_grid[-1]),
-            np.clip(a_lag, a_lag_grid[0], a_lag_grid[-1]),
-            np.clip(pi_lag_op, pi_lag_grid[0], pi_lag_grid[-1])
+        raw_state = np.array([
+            a_now,
+            a_lag,
+            pi_lag_op
         ])
 
-        if np.any(np.abs(raw_state - clipped_state) > 1e-14):
+        clipped_state = np.array([
+            np.clip(
+                a_now,
+                a_grid[0],
+                a_grid[-1]
+            ),
+            np.clip(
+                a_lag,
+                a_lag_grid[0],
+                a_lag_grid[-1]
+            ),
+            np.clip(
+                pi_lag_op,
+                pi_lag_grid[0],
+                pi_lag_grid[-1]
+            )
+        ])
+
+        if np.any(
+            np.abs(
+                raw_state
+                - clipped_state
+            ) > 1e-14
+        ):
             clipping_count_op += 1
 
-        pi_op_t = float(op_pi_interpolator(clipped_state.reshape(1, -1))[0])
+        pi_op_t = float(
+            op_pi_interpolator(
+                clipped_state.reshape(
+                    1,
+                    -1
+                )
+            )[0]
+        )
 
         u_op_t = max(
             0.0,
-            (lam * pi_lag_op - pi_op_t - a_now + a_lag) / xi
+            (
+                lam * pi_lag_op
+                - pi_op_t
+                - a_now
+                + a_lag
+            ) / xi
         )
 
-        y_op_t = a_now - u_op_t
-        pi_w_op_t = pi_op_t + a_now - a_lag
-        output_gap_op_t = y_op_t - a_now
+        y_op_t = (
+            a_now
+            - u_op_t
+        )
+
+        pi_w_op_t = (
+            pi_op_t
+            + a_now
+            - a_lag
+        )
+
+        output_gap_op_t = (
+            y_op_t
+            - a_now
+        )
+
         welfare_op_t = (
             a_now
             - u_op_t
             - np.exp(-u_op_t)
-            - 0.5 * kappa * pi_op_t**2
+            - 0.5
+            * kappa
+            * pi_op_t**2
         )
-        b_op_t = lam * pi_lag_op - a_now + a_lag
+
+        b_op_t = (
+            lam * pi_lag_op
+            - a_now
+            + a_lag
+        )
 
         op["a"][t] = a_now
         op["pi"][t] = pi_op_t
@@ -1675,7 +2319,11 @@ def simulate_question8_unconditional_moments(
         pi_lag_op = pi_op_t
 
         # NP: no-prudential myopic policy
-        pi_np_t, u_np_t, b_np_t = solve_myopic_no_prudential_policy(
+        (
+            pi_np_t,
+            u_np_t,
+            b_np_t
+        ) = solve_myopic_no_prudential_policy(
             a_now=a_now,
             a_lag=a_lag,
             pi_lag=pi_lag_np,
@@ -1684,14 +2332,29 @@ def simulate_question8_unconditional_moments(
             kappa=kappa
         )
 
-        y_np_t = a_now - u_np_t
-        pi_w_np_t = pi_np_t + a_now - a_lag
-        output_gap_np_t = y_np_t - a_now
+        y_np_t = (
+            a_now
+            - u_np_t
+        )
+
+        pi_w_np_t = (
+            pi_np_t
+            + a_now
+            - a_lag
+        )
+
+        output_gap_np_t = (
+            y_np_t
+            - a_now
+        )
+
         welfare_np_t = (
             a_now
             - u_np_t
             - np.exp(-u_np_t)
-            - 0.5 * kappa * pi_np_t**2
+            - 0.5
+            * kappa
+            * pi_np_t**2
         )
 
         npol["a"][t] = a_now
@@ -1706,9 +2369,14 @@ def simulate_question8_unconditional_moments(
         pi_lag_np = pi_np_t
 
     # Drop burn-in observations
-    for dictionary in [op, npol]:
+    for dictionary in [
+        op,
+        npol
+    ]:
         for key in dictionary:
-            dictionary[key] = dictionary[key][burn_in:]
+            dictionary[key] = (
+                dictionary[key][burn_in:]
+            )
 
     # Compute unconditional moments
     def compute_moments(series):
@@ -1719,34 +2387,73 @@ def simulate_question8_unconditional_moments(
         output_gap = series["output_gap"]
         welfare = series["welfare"]
 
-        binding = u > binding_tolerance
+        binding = (
+            u
+            > binding_tolerance
+        )
 
         return {
             "mean_productivity": np.mean(a),
             "mean_unemployment": np.mean(u),
             "binding_frequency": np.mean(binding),
             "mean_unemployment_if_binding": (
-                np.mean(u[binding]) if np.any(binding) else 0.0
+                np.mean(u[binding])
+                if np.any(binding)
+                else 0.0
             ),
-            "p95_unemployment": np.percentile(u, 95),
-            "sd_output_gap": np.std(output_gap, ddof=0),
-            "sd_inflation": np.std(pi, ddof=0),
-            "average_welfare_flow": np.mean(welfare),
+            "p95_unemployment": np.percentile(
+                u,
+                95
+            ),
+            "sd_output_gap": np.std(
+                output_gap,
+                ddof=0
+            ),
+            "sd_inflation": np.std(
+                pi,
+                ddof=0
+            ),
+            "average_welfare_flow": np.mean(
+                welfare
+            ),
         }
 
     op_moments = compute_moments(op)
     np_moments = compute_moments(npol)
 
     rows = [
-        (r"Average productivity $E[a_t]$", "mean_productivity"),
-        (r"Mean unemployment $E[u_t]$", "mean_unemployment"),
-        (r"Frequency of binding DNWR $Pr(u_t>0)$", "binding_frequency"),
-        (r"Mean unemployment if binding $E[u_t\mid u_t>0]$",
-         "mean_unemployment_if_binding"),
-        (r"95th percentile of unemployment", "p95_unemployment"),
-        (r"Volatility of output gap $sd(y_t-a_t)$", "sd_output_gap"),
-        (r"Volatility of inflation $sd(\pi_t)$", "sd_inflation"),
-        (r"Average welfare flow $E[w_t]$", "average_welfare_flow"),
+        (
+            r"Average productivity $E[a_t]$",
+            "mean_productivity"
+        ),
+        (
+            r"Mean unemployment $E[u_t]$",
+            "mean_unemployment"
+        ),
+        (
+            r"Frequency of binding DNWR $Pr(u_t>0)$",
+            "binding_frequency"
+        ),
+        (
+            r"Mean unemployment if binding $E[u_t\mid u_t>0]$",
+            "mean_unemployment_if_binding"
+        ),
+        (
+            r"95th percentile of unemployment",
+            "p95_unemployment"
+        ),
+        (
+            r"Volatility of output gap $sd(y_t-a_t)$",
+            "sd_output_gap"
+        ),
+        (
+            r"Volatility of inflation $sd(\pi_t)$",
+            "sd_inflation"
+        ),
+        (
+            r"Average welfare flow $E[w_t]$",
+            "average_welfare_flow"
+        ),
     ]
 
     table = pd.DataFrame([
@@ -1754,15 +2461,26 @@ def simulate_question8_unconditional_moments(
             "Moment": label,
             "Prudential policy": op_moments[key],
             "No-prudential policy": np_moments[key],
-            "Difference": op_moments[key] - np_moments[key],
+            "Difference": (
+                op_moments[key]
+                - np_moments[key]
+            ),
         }
         for label, key in rows
     ])
 
     formatted_table = table.copy()
 
-    for column in ["Prudential policy", "No-prudential policy", "Difference"]:
-        formatted_table[column] = formatted_table[column].map(lambda x: f"{x:.6f}")
+    for column in [
+        "Prudential policy",
+        "No-prudential policy",
+        "Difference"
+    ]:
+        formatted_table[column] = (
+            formatted_table[column].map(
+                lambda x: f"{x:.6f}"
+            )
+        )
 
     latex_table = formatted_table.to_latex(
         index=False,
@@ -1780,25 +2498,59 @@ def simulate_question8_unconditional_moments(
         - np_moments["average_welfare_flow"]
     )
 
-    clipping_share_op = clipping_count_op / total_T
+    clipping_share_op = (
+        clipping_count_op
+        / total_T
+    )
 
-    print("\nQuestion 8.4: unconditional simulated moments")
-    print(formatted_table.to_string(index=False))
+    print(
+        "\nQuestion 8.4: "
+        "unconditional simulated moments"
+    )
 
-    print("\nAverage welfare gain, OP - NP:",
-          f"{welfare_gain:.8f}")
+    print(
+        formatted_table.to_string(
+            index=False
+        )
+    )
 
-    print("Share of OP simulation states clipped to the interpolation grid:",
-          f"{clipping_share_op:.4%}")
+    print(
+        "\nAverage welfare gain, OP - NP:",
+        f"{welfare_gain:.8f}"
+    )
+
+    print(
+        "Share of OP simulation states clipped "
+        "to the interpolation grid:",
+        f"{clipping_share_op:.4%}"
+    )
 
     if clipping_share_op > 0.01:
-        print("\nWarning: more than 1% of OP simulation states are clipped.")
-        print("Consider widening the state grids in Question 6 and re-solving the model.")
+        print(
+            "\nWarning: more than 1% of OP "
+            "simulation states are clipped."
+        )
+        print(
+            "Consider widening the state grids "
+            "in Question 6 and re-solving the model."
+        )
 
     # Export simulation outputs.
-    table.to_csv("question8_unconditional_moments.csv", index=False)
+    table.to_csv(
+        os.path.join(
+            RESULTS_DIR,
+            "unconditional_moments.csv"
+        ),
+        index=False
+    )
 
-    with open("table_question8_unconditional_moments.tex", "w") as file:
+    with open(
+        os.path.join(
+            RESULTS_DIR,
+            "unconditional_moments.tex"
+        ),
+        "w"
+    ) as file:
         file.write(latex_table)
 
     return {
@@ -1862,7 +2614,9 @@ def add_nominal_interest_rate_to_q8_results(
 
     # Steady-state nominal rate in the linearized model.
     # This is rho = -log(beta), not the productivity persistence rho_a.
-    rho_steady_state = -np.log(beta)
+    rho_steady_state = (
+        -np.log(beta)
+    )
 
     a_grid = q6_results["a_grid"]
     a_lag_grid = q6_results["a_lag_grid"]
@@ -1870,50 +2624,103 @@ def add_nominal_interest_rate_to_q8_results(
     policy_pi = q6_results["policy_pi"]
 
     op_pi_interpolator = RegularGridInterpolator(
-        (a_grid, a_lag_grid, pi_lag_grid),
+        (
+            a_grid,
+            a_lag_grid,
+            pi_lag_grid
+        ),
         policy_pi,
         bounds_error=False,
         fill_value=None
     )
 
     # Gaussian quadrature for epsilon_{t+1}.
-    hermite_nodes, hermite_weights = np.polynomial.hermite.hermgauss(
+    (
+        hermite_nodes,
+        hermite_weights
+    ) = np.polynomial.hermite.hermgauss(
         n_quadrature
     )
-    shock_nodes = np.sqrt(2.0) * sigma * hermite_nodes
-    shock_weights = hermite_weights / np.sqrt(np.pi)
 
-    def expected_next_nominal_component(policy_name, a_current, pi_current):
+    shock_nodes = (
+        np.sqrt(2.0)
+        * sigma
+        * hermite_nodes
+    )
+
+    shock_weights = (
+        hermite_weights
+        / np.sqrt(np.pi)
+    )
+
+    def expected_next_nominal_component(
+        policy_name,
+        a_current,
+        pi_current
+    ):
         """
         Computes E_t(pi_{t+1} + y_{t+1}) under either OP or NP.
         """
 
         expected_component = 0.0
 
-        for shock, weight in zip(shock_nodes, shock_weights):
+        for shock, weight in zip(
+            shock_nodes,
+            shock_weights
+        ):
 
-            a_next = rho_a * a_current + shock
+            a_next = (
+                rho_a
+                * a_current
+                + shock
+            )
 
             if policy_name == "OP":
 
                 next_state = np.array([
-                    np.clip(a_next, a_grid[0], a_grid[-1]),
-                    np.clip(a_current, a_lag_grid[0], a_lag_grid[-1]),
-                    np.clip(pi_current, pi_lag_grid[0], pi_lag_grid[-1])
+                    np.clip(
+                        a_next,
+                        a_grid[0],
+                        a_grid[-1]
+                    ),
+                    np.clip(
+                        a_current,
+                        a_lag_grid[0],
+                        a_lag_grid[-1]
+                    ),
+                    np.clip(
+                        pi_current,
+                        pi_lag_grid[0],
+                        pi_lag_grid[-1]
+                    )
                 ])
 
                 pi_next = float(
-                    op_pi_interpolator(next_state.reshape(1, -1))[0]
+                    op_pi_interpolator(
+                        next_state.reshape(
+                            1,
+                            -1
+                        )
+                    )[0]
                 )
 
                 u_next = max(
                     0.0,
-                    (lam * pi_current - pi_next - a_next + a_current) / xi
+                    (
+                        lam * pi_current
+                        - pi_next
+                        - a_next
+                        + a_current
+                    ) / xi
                 )
 
             elif policy_name == "NP":
 
-                pi_next, u_next, _ = solve_myopic_no_prudential_policy(
+                (
+                    pi_next,
+                    u_next,
+                    _
+                ) = solve_myopic_no_prudential_policy(
                     a_now=a_next,
                     a_lag=a_current,
                     pi_lag=pi_current,
@@ -1923,17 +2730,34 @@ def add_nominal_interest_rate_to_q8_results(
                 )
 
             else:
-                raise ValueError("policy_name must be either 'OP' or 'NP'.")
+                raise ValueError(
+                    "policy_name must be either 'OP' or 'NP'."
+                )
 
-            y_next = a_next - u_next
+            y_next = (
+                a_next
+                - u_next
+            )
 
-            expected_component += weight * (pi_next + y_next)
+            expected_component += (
+                weight
+                * (
+                    pi_next
+                    + y_next
+                )
+            )
 
         return expected_component
 
     for policy_name, series in [
-        ("OP", q8_4_results["op_series"]),
-        ("NP", q8_4_results["np_series"])
+        (
+            "OP",
+            q8_4_results["op_series"]
+        ),
+        (
+            "NP",
+            q8_4_results["np_series"]
+        )
     ]:
 
         T = len(series["a"])
@@ -1947,22 +2771,37 @@ def add_nominal_interest_rate_to_q8_results(
             y_current = series["y"][t]
             pi_current = series["pi"][t]
 
-            expected_component = expected_next_nominal_component(
-                policy_name=policy_name,
-                a_current=a_current,
-                pi_current=pi_current
+            expected_component = (
+                expected_next_nominal_component(
+                    policy_name=policy_name,
+                    a_current=a_current,
+                    pi_current=pi_current
+                )
             )
 
-            i_t = rho_steady_state - y_current + expected_component
+            i_t = (
+                rho_steady_state
+                - y_current
+                + expected_component
+            )
 
             nominal_rate[t] = i_t
-            expected_nominal_component[t] = expected_component
+            expected_nominal_component[t] = (
+                expected_component
+            )
 
         series["i_nominal"] = nominal_rate
-        series["i_nominal_gap"] = nominal_rate - rho_steady_state
-        series["expected_pi_plus_y_next"] = expected_nominal_component
+        series["i_nominal_gap"] = (
+            nominal_rate
+            - rho_steady_state
+        )
+        series["expected_pi_plus_y_next"] = (
+            expected_nominal_component
+        )
 
-    q8_4_results["rho_steady_state"] = rho_steady_state
+    q8_4_results["rho_steady_state"] = (
+        rho_steady_state
+    )
 
     return q8_4_results
 
@@ -2001,126 +2840,315 @@ def run_question8_event_study(
     # Event definition
     # An event occurs when NP unemployment becomes strictly positive
     # after being zero in the previous period.
-    binding_now = u_np > binding_tolerance
-    binding_lag = np.concatenate(([False], u_np[:-1] > binding_tolerance))
+    binding_now = (
+        u_np
+        > binding_tolerance
+    )
 
-    raw_events = np.where(binding_now & (~binding_lag))[0]
+    binding_lag = np.concatenate(
+        (
+            [False],
+            u_np[:-1] > binding_tolerance
+        )
+    )
+
+    raw_events = np.where(
+        binding_now
+        & (~binding_lag)
+    )[0]
 
     # Keep only events with a complete event window.
     events = raw_events[
         (raw_events >= window_before)
-        & (raw_events <= T - window_after - 1)
+        & (
+            raw_events
+            <= T - window_after - 1
+        )
     ]
 
     # Enforce minimum spacing between event onsets.
     # Onset-based selection already avoids counting every period within
     # the same binding spell; spacing further limits overlapping windows.
     if minimum_spacing is not None:
+
         filtered_events = []
         last_event = -10**9
 
         for event in events:
-            if event - last_event >= minimum_spacing:
+
+            if (
+                event
+                - last_event
+                >= minimum_spacing
+            ):
                 filtered_events.append(event)
                 last_event = event
 
-        events = np.array(filtered_events, dtype=int)
+        events = np.array(
+            filtered_events,
+            dtype=int
+        )
 
     if len(events) == 0:
         raise RuntimeError(
-            "No event-study episodes found. Try lowering binding_tolerance "
+            "No event-study episodes found. "
+            "Try lowering binding_tolerance "
             "or increasing the simulation length."
         )
 
-    horizons = np.arange(-window_before, window_after + 1)
+    horizons = np.arange(
+        -window_before,
+        window_after + 1
+    )
 
     # Event-time averaging helper
     def event_average(series):
+
         stacked = np.vstack([
-            series[event + horizons]
+            series[
+                event + horizons
+            ]
             for event in events
         ])
-        return stacked.mean(axis=0)
+
+        return stacked.mean(
+            axis=0
+        )
 
     # Build event-time averages
     event_study = pd.DataFrame({
         "horizon": horizons,
 
-        "a": event_average(op["a"]),
+        "a": event_average(
+            op["a"]
+        ),
 
-        "pi_OP": event_average(op["pi"]),
-        "pi_NP": event_average(npol["pi"]),
+        "pi_OP": event_average(
+            op["pi"]
+        ),
+        "pi_NP": event_average(
+            npol["pi"]
+        ),
 
-        "wage_pressure_OP": event_average(op["wage_pressure"]),
-        "wage_pressure_NP": event_average(npol["wage_pressure"]),
+        "wage_pressure_OP": event_average(
+            op["wage_pressure"]
+        ),
+        "wage_pressure_NP": event_average(
+            npol["wage_pressure"]
+        ),
 
-        "u_OP": event_average(op["u"]),
-        "u_NP": event_average(npol["u"]),
+        "u_OP": event_average(
+            op["u"]
+        ),
+        "u_NP": event_average(
+            npol["u"]
+        ),
 
-        "output_gap_OP": event_average(op["output_gap"]),
-        "output_gap_NP": event_average(npol["output_gap"]),
+        "output_gap_OP": event_average(
+            op["output_gap"]
+        ),
+        "output_gap_NP": event_average(
+            npol["output_gap"]
+        ),
 
-        "welfare_OP": event_average(op["welfare"]),
-        "welfare_NP": event_average(npol["welfare"]),
+        "welfare_OP": event_average(
+            op["welfare"]
+        ),
+        "welfare_NP": event_average(
+            npol["welfare"]
+        ),
     })
 
-    event_study["welfare_difference_OP_minus_NP"] = (
-        event_study["welfare_OP"] - event_study["welfare_NP"]
+    event_study[
+        "welfare_difference_OP_minus_NP"
+    ] = (
+        event_study["welfare_OP"]
+        - event_study["welfare_NP"]
     )
 
     # Report event-study diagnostics
-    pre_event = event_study["horizon"].between(-window_before, -1)
-    post_event = event_study["horizon"].between(1, window_after)
+    pre_event = event_study[
+        "horizon"
+    ].between(
+        -window_before,
+        -1
+    )
 
-    print("\nQuestion 8.6: event study around binding DNWR episodes")
-    print("Number of events:", len(events))
-    print("Window:", f"[-{window_before}, +{window_after}]")
+    post_event = event_study[
+        "horizon"
+    ].between(
+        1,
+        window_after
+    )
 
-    print("\nAverage inflation before the event:")
-    print("OP:", round(event_study.loc[pre_event, "pi_OP"].mean(), 6))
-    print("NP:", round(event_study.loc[pre_event, "pi_NP"].mean(), 6))
+    print(
+        "\nQuestion 8.6: event study around "
+        "binding DNWR episodes"
+    )
 
-    print("\nAverage wage pressure at the event date:")
+    print(
+        "Number of events:",
+        len(events)
+    )
+
+    print(
+        "Window:",
+        f"[-{window_before}, +{window_after}]"
+    )
+
+    print(
+        "\nAverage inflation before the event:"
+    )
+
     print(
         "OP:",
-        round(event_study.loc[event_study["horizon"] == 0,
-                              "wage_pressure_OP"].iloc[0], 6)
+        round(
+            event_study.loc[
+                pre_event,
+                "pi_OP"
+            ].mean(),
+            6
+        )
     )
+
     print(
         "NP:",
-        round(event_study.loc[event_study["horizon"] == 0,
-                              "wage_pressure_NP"].iloc[0], 6)
+        round(
+            event_study.loc[
+                pre_event,
+                "pi_NP"
+            ].mean(),
+            6
+        )
     )
 
-    print("\nAverage unemployment after the event:")
-    print("OP:", round(event_study.loc[post_event, "u_OP"].mean(), 6))
-    print("NP:", round(event_study.loc[post_event, "u_NP"].mean(), 6))
+    print(
+        "\nAverage wage pressure at the event date:"
+    )
 
-    print("\nAverage welfare difference OP - NP over the event window:")
-    print(round(event_study["welfare_difference_OP_minus_NP"].mean(), 8))
+    print(
+        "OP:",
+        round(
+            event_study.loc[
+                event_study[
+                    "horizon"
+                ] == 0,
+                "wage_pressure_OP"
+            ].iloc[0],
+            6
+        )
+    )
+
+    print(
+        "NP:",
+        round(
+            event_study.loc[
+                event_study[
+                    "horizon"
+                ] == 0,
+                "wage_pressure_NP"
+            ].iloc[0],
+            6
+        )
+    )
+
+    print(
+        "\nAverage unemployment after the event:"
+    )
+
+    print(
+        "OP:",
+        round(
+            event_study.loc[
+                post_event,
+                "u_OP"
+            ].mean(),
+            6
+        )
+    )
+
+    print(
+        "NP:",
+        round(
+            event_study.loc[
+                post_event,
+                "u_NP"
+            ].mean(),
+            6
+        )
+    )
+
+    print(
+        "\nAverage welfare difference "
+        "OP - NP over the event window:"
+    )
+
+    print(
+        round(
+            event_study[
+                "welfare_difference_OP_minus_NP"
+            ].mean(),
+            8
+        )
+    )
 
     # Figure
-    color_op = globals().get("burgundy", "#8B0000")
-    color_np = globals().get("green", "#006400")
-    color_a = globals().get("blue", "#003f8c")
+    color_op = globals().get(
+        "burgundy",
+        "#8B0000"
+    )
 
-    fig, axs = plt.subplots(2, 2, figsize=(10, 6.5))
+    color_np = globals().get(
+        "green",
+        "#006400"
+    )
+
+    color_a = globals().get(
+        "blue",
+        "#003f8c"
+    )
+
+    fig, axs = plt.subplots(
+        2,
+        2,
+        figsize=(10, 6.5)
+    )
 
     # Panel 1: productivity
     ax = axs[0, 0]
+
     ax.plot(
         event_study["horizon"],
         event_study["a"],
         color=color_a,
         linewidth=2.5
     )
-    ax.axvline(0, color="black", linewidth=0.8, linestyle="--")
-    ax.axhline(0, color="black", linewidth=0.8, linestyle=":")
-    ax.set_title(r"Productivity $a_t$")
-    ax.set_ylabel("linear deviation")
+
+    ax.axvline(
+        0,
+        color="black",
+        linewidth=0.8,
+        linestyle="--"
+    )
+
+    ax.axhline(
+        0,
+        color="black",
+        linewidth=0.8,
+        linestyle=":"
+    )
+
+    ax.set_title(
+        r"Productivity $a_t$"
+    )
+
+    ax.set_ylabel(
+        "linear deviation"
+    )
 
     # Panel 2: inflation
     ax = axs[0, 1]
+
     ax.plot(
         event_study["horizon"],
         event_study["pi_OP"],
@@ -2128,6 +3156,7 @@ def run_question8_event_study(
         linewidth=2.5,
         label="Prudential policy"
     )
+
     ax.plot(
         event_study["horizon"],
         event_study["pi_NP"],
@@ -2136,13 +3165,32 @@ def run_question8_event_study(
         linestyle="--",
         label="No-prudential policy"
     )
-    ax.axvline(0, color="black", linewidth=0.8, linestyle="--")
-    ax.axhline(0, color="black", linewidth=0.8, linestyle=":")
-    ax.set_title(r"Inflation $\pi_t$")
-    ax.set_ylabel("linear deviation")
+
+    ax.axvline(
+        0,
+        color="black",
+        linewidth=0.8,
+        linestyle="--"
+    )
+
+    ax.axhline(
+        0,
+        color="black",
+        linewidth=0.8,
+        linestyle=":"
+    )
+
+    ax.set_title(
+        r"Inflation $\pi_t$"
+    )
+
+    ax.set_ylabel(
+        "linear deviation"
+    )
 
     # Panel 3: inherited wage pressure
     ax = axs[1, 0]
+
     ax.plot(
         event_study["horizon"],
         event_study["wage_pressure_OP"],
@@ -2150,6 +3198,7 @@ def run_question8_event_study(
         linewidth=2.5,
         label="Prudential policy"
     )
+
     ax.plot(
         event_study["horizon"],
         event_study["wage_pressure_NP"],
@@ -2158,14 +3207,36 @@ def run_question8_event_study(
         linestyle="--",
         label="No-prudential policy"
     )
-    ax.axvline(0, color="black", linewidth=0.8, linestyle="--")
-    ax.axhline(0, color="black", linewidth=0.8, linestyle=":")
-    ax.set_title(r"Inherited wage pressure $b_t$")
-    ax.set_xlabel("Event time")
-    ax.set_ylabel("linear deviation")
+
+    ax.axvline(
+        0,
+        color="black",
+        linewidth=0.8,
+        linestyle="--"
+    )
+
+    ax.axhline(
+        0,
+        color="black",
+        linewidth=0.8,
+        linestyle=":"
+    )
+
+    ax.set_title(
+        r"Inherited wage pressure $b_t$"
+    )
+
+    ax.set_xlabel(
+        "Event time"
+    )
+
+    ax.set_ylabel(
+        "linear deviation"
+    )
 
     # Panel 4: unemployment
     ax = axs[1, 1]
+
     ax.plot(
         event_study["horizon"],
         event_study["u_OP"],
@@ -2173,6 +3244,7 @@ def run_question8_event_study(
         linewidth=2.5,
         label="Prudential policy"
     )
+
     ax.plot(
         event_study["horizon"],
         event_study["u_NP"],
@@ -2181,19 +3253,52 @@ def run_question8_event_study(
         linestyle="--",
         label="No-prudential policy"
     )
-    ax.axvline(0, color="black", linewidth=0.8, linestyle="--")
-    ax.axhline(0, color="black", linewidth=0.8, linestyle=":")
-    ax.set_title(r"Unemployment $u_t$")
-    ax.set_xlabel("Event time")
-    ax.set_ylabel("linear deviation")
+
+    ax.axvline(
+        0,
+        color="black",
+        linewidth=0.8,
+        linestyle="--"
+    )
+
+    ax.axhline(
+        0,
+        color="black",
+        linewidth=0.8,
+        linestyle=":"
+    )
+
+    ax.set_title(
+        r"Unemployment $u_t$"
+    )
+
+    ax.set_xlabel(
+        "Event time"
+    )
+
+    ax.set_ylabel(
+        "linear deviation"
+    )
 
     # Common panel formatting
     for ax in axs.flatten():
-        ax.set_xlim(-window_before, window_after)
-        ax.set_xticks(horizons)
+
+        ax.set_xlim(
+            -window_before,
+            window_after
+        )
+
+        ax.set_xticks(
+            horizons
+        )
+
         ax.grid(False)
 
-    handles, labels = axs[0, 1].get_legend_handles_labels()
+    handles, labels = (
+        axs[0, 1]
+        .get_legend_handles_labels()
+    )
+
     fig.legend(
         handles,
         labels,
@@ -2211,12 +3316,33 @@ def run_question8_event_study(
         hspace=0.45
     )
 
-    plt.savefig("event_study_question8.pdf", bbox_inches="tight")
-    plt.savefig("event_study_question8.png", dpi=300, bbox_inches="tight")
+    plt.savefig(
+        os.path.join(
+            FIGURES_DIR,
+            "prudential_policy_event_study.pdf"
+        ),
+        bbox_inches="tight"
+    )
+
+    plt.savefig(
+        os.path.join(
+            FIGURES_DIR,
+            "prudential_policy_event_study.png"
+        ),
+        dpi=300,
+        bbox_inches="tight"
+    )
+
     plt.show()
 
     # Export event-study data.
-    event_study.to_csv("question8_event_study.csv", index=False)
+    event_study.to_csv(
+        os.path.join(
+            RESULTS_DIR,
+            "prudential_policy_event_study.csv"
+        ),
+        index=False
+    )
 
     return {
         "event_study": event_study,
@@ -2259,21 +3385,33 @@ def plot_question8_nominal_rate_event_study(
     window_before = q8_6_results["window_before"]
     window_after = q8_6_results["window_after"]
 
-    horizons = np.arange(-window_before, window_after + 1)
+    horizons = np.arange(
+        -window_before,
+        window_after + 1
+    )
 
     def event_average(series):
+
         stacked = np.vstack([
-            series[event + horizons]
+            series[
+                event + horizons
+            ]
             for event in events
         ])
-        return stacked.mean(axis=0)
+
+        return stacked.mean(
+            axis=0
+        )
 
     if use_gap:
+
         nominal_key = "i_nominal_gap"
         title = r"Nominal interest rate $i_t-\rho$"
         y_label = "deviation from steady state"
         file_suffix = "gap"
+
     else:
+
         nominal_key = "i_nominal"
         title = r"Nominal interest rate $i_t$"
         y_label = "linearized nominal rate"
@@ -2281,18 +3419,33 @@ def plot_question8_nominal_rate_event_study(
 
     nominal_rate_event_study = pd.DataFrame({
         "horizon": horizons,
-        "nominal_rate_OP": event_average(op[nominal_key]),
-        "nominal_rate_NP": event_average(npol[nominal_key]),
+        "nominal_rate_OP": event_average(
+            op[nominal_key]
+        ),
+        "nominal_rate_NP": event_average(
+            npol[nominal_key]
+        ),
     })
 
-    color_op = globals().get("burgundy", "#8B0000")
-    color_np = globals().get("green", "#006400")
+    color_op = globals().get(
+        "burgundy",
+        "#8B0000"
+    )
 
-    fig, ax = plt.subplots(figsize=(7.5, 4.4))
+    color_np = globals().get(
+        "green",
+        "#006400"
+    )
+
+    fig, ax = plt.subplots(
+        figsize=(7.5, 4.4)
+    )
 
     ax.plot(
         nominal_rate_event_study["horizon"],
-        nominal_rate_event_study["nominal_rate_OP"],
+        nominal_rate_event_study[
+            "nominal_rate_OP"
+        ],
         color=color_op,
         linewidth=2.5,
         label="Prudential policy"
@@ -2300,21 +3453,51 @@ def plot_question8_nominal_rate_event_study(
 
     ax.plot(
         nominal_rate_event_study["horizon"],
-        nominal_rate_event_study["nominal_rate_NP"],
+        nominal_rate_event_study[
+            "nominal_rate_NP"
+        ],
         color=color_np,
         linewidth=2.5,
         linestyle="--",
         label="No-prudential policy"
     )
 
-    ax.axvline(0, color="black", linewidth=0.8, linestyle="--")
-    ax.axhline(0, color="black", linewidth=0.8, linestyle=":")
+    ax.axvline(
+        0,
+        color="black",
+        linewidth=0.8,
+        linestyle="--"
+    )
 
-    ax.set_title(title, pad=10)
-    ax.set_xlabel("Event time")
-    ax.set_ylabel(y_label)
-    ax.set_xlim(-window_before, window_after)
-    ax.set_xticks(horizons)
+    ax.axhline(
+        0,
+        color="black",
+        linewidth=0.8,
+        linestyle=":"
+    )
+
+    ax.set_title(
+        title,
+        pad=10
+    )
+
+    ax.set_xlabel(
+        "Event time"
+    )
+
+    ax.set_ylabel(
+        y_label
+    )
+
+    ax.set_xlim(
+        -window_before,
+        window_after
+    )
+
+    ax.set_xticks(
+        horizons
+    )
+
     ax.grid(False)
 
     ax.legend(
@@ -2331,12 +3514,25 @@ def plot_question8_nominal_rate_event_study(
         bottom=0.26
     )
 
+    output_stem = (
+        "nominal_interest_rate_event_study"
+        if file_suffix == "level"
+        else "nominal_interest_rate_gap_event_study"
+    )
+
     plt.savefig(
-        f"event_study_question8_nominal_interest_rate_{file_suffix}.pdf",
+        os.path.join(
+            FIGURES_DIR,
+            f"{output_stem}.pdf"
+        ),
         bbox_inches="tight"
     )
+
     plt.savefig(
-        f"event_study_question8_nominal_interest_rate_{file_suffix}.png",
+        os.path.join(
+            FIGURES_DIR,
+            f"{output_stem}.png"
+        ),
         dpi=300,
         bbox_inches="tight"
     )
@@ -2344,19 +3540,40 @@ def plot_question8_nominal_rate_event_study(
     plt.show()
 
     nominal_rate_event_study.to_csv(
-        f"question8_nominal_interest_rate_event_study_{file_suffix}.csv",
+        os.path.join(
+            RESULTS_DIR,
+            f"{output_stem}.csv"
+        ),
         index=False
     )
 
-    print("\nQuestion 8.6: nominal interest-rate event study")
-    print("Number of events:", len(events))
-    print("Steady-state nominal rate rho:", round(q8_4_results["rho_steady_state"], 6))
+    print(
+        "\nQuestion 8.6: "
+        "nominal interest-rate event study"
+    )
+
+    print(
+        "Number of events:",
+        len(events)
+    )
+
+    print(
+        "Steady-state nominal rate rho:",
+        round(
+            q8_4_results[
+                "rho_steady_state"
+            ],
+            6
+        )
+    )
 
     return nominal_rate_event_study
 
 
-q8_nominal_rate_event_study = plot_question8_nominal_rate_event_study(
-    q8_4_results=q8_4_results,
-    q8_6_results=q8_6_results,
-    use_gap=False
+q8_nominal_rate_event_study = (
+    plot_question8_nominal_rate_event_study(
+        q8_4_results=q8_4_results,
+        q8_6_results=q8_6_results,
+        use_gap=False
+    )
 )
