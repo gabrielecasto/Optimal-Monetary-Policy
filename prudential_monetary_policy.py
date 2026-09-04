@@ -8,7 +8,7 @@ Questions 1 through 8 are implemented in sequence, combining analytical response
 numerical optimization, dynamic programming, simulations, and event studies.
 
 Model variables are expressed as log-linear deviations unless explicitly converted
-to levels. Figures are exported in both PDF and PNG formats.
+to levels.
 """
 
 import os
