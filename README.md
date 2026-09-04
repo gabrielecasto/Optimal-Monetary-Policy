@@ -38,24 +38,26 @@ where:
 
 Downward nominal wage rigidity implies
 
-$$
+```math
 u_t =
 \max \left\{
-0,
-\frac{\lambda \pi_{t-1}-\pi_t-a_t+a_{t-1}}{\xi}
+0,\,
+\frac{\lambda \pi_{t-1} - \pi_t - a_t + a_{t-1}}{\xi}
 \right\}.
-$$
+```
 
 Under optimal monetary policy, the inflation-unemployment trade-off can be summarized by the stochastic target rule
 
-$$
-1-e^{-u_t}
+```math
+1 - e^{-u_t}
 =
 \xi \kappa \pi_t
 +
-\beta \lambda
-E_t\left[1-e^{-u_{t+1}}\right].
-$$
+\beta \lambda E_t
+\left[
+1 - e^{-u_{t+1}}
+\right].
+```
 
 The final term is the key **prudential component**.
 
