@@ -35,7 +35,7 @@ os.makedirs(FIGURES_DIR, exist_ok=True)
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # =============================================================================
-# QUESTION 1 — ONE-TIME NEGATIVE PRODUCTIVITY SHOCK: TAYLOR RULE
+# QUESTION 1 — TAYLOR-RULE RESPONSE TO A NEGATIVE PRODUCTIVITY SHOCK
 # =============================================================================
 
 # Model calibration
@@ -175,7 +175,7 @@ print("pi_w:", np.round(pi_w, 4))
 
 
 # =============================================================================
-# QUESTION 2 — ONE-TIME NEGATIVE PRODUCTIVITY SHOCK: OPTIMAL POLICY
+# QUESTION 2 — OPTIMAL POLICY UNDER A NEGATIVE PRODUCTIVITY SHOCK
 # =============================================================================
 
 # Inflation-cost parameter
@@ -480,7 +480,7 @@ if include_kappa_zero:
 
 
 # =============================================================================
-# QUESTION 3 — AS–AD DIAGRAM AFTER A NEGATIVE PRODUCTIVITY SHOCK
+# QUESTION 3 — AS-AD REPRESENTATION OF A NEGATIVE PRODUCTIVITY SHOCK
 # =============================================================================
 
 # Convert log deviations to levels
@@ -789,7 +789,7 @@ if include_kappa_zero:
 
 
 # =============================================================================
-# QUESTION 4 — ONE-TIME POSITIVE PRODUCTIVITY SHOCK: TAYLOR RULE
+# QUESTION 4 — TAYLOR-RULE ADJUSTMENT AFTER A POSITIVE PRODUCTIVITY SHOCK
 # =============================================================================
 # The period-0 allocation is imposed by the assignment. From period 1 onward,
 # the economy follows the Taylor-rule transition derived analytically.
@@ -928,7 +928,7 @@ print("piW =", np.round(pi_w, 4))
 
 
 # =============================================================================
-# QUESTION 5 — ONE-TIME POSITIVE PRODUCTIVITY SHOCK: OPTIMAL POLICY
+# QUESTION 5 — OPTIMAL POLICY UNDER A POSITIVE PRODUCTIVITY SHOCK
 # =============================================================================
 # The Taylor-rule path from Question 4 is compared with the optimal allocation
 # for kappa = 0.5 and with the full-employment benchmark for kappa = 0.
@@ -1308,7 +1308,7 @@ for label, data in paths.items():
 
 
 # =============================================================================
-# QUESTION 6 — STOCHASTIC MODEL AND NUMERICAL POLICY FUNCTIONS
+# QUESTION 6 — OPTIMAL POLICY IN THE STOCHASTIC MODEL
 # =============================================================================
 # State: s_t = (a_t, a_{t-1}, pi_{t-1})
 # Control: pi_t; unemployment is implied by the DNWR constraint.
@@ -1997,14 +1997,14 @@ print(
 
 
 # =============================================================================
-# QUESTION 7 — PRUDENTIAL POLICY IN BOOM STATES
+# QUESTION 7 — PRUDENTIAL MONETARY POLICY IN BOOM STATES
 # =============================================================================
 # No additional numerical routine is required here. The discussion in Question 7
 # is based on the policy-function slices generated in Question 6.
 
 
 # =============================================================================
-# QUESTION 8 — PRUDENTIAL VS. NO-PRUDENTIAL MONETARY POLICY
+# QUESTION 8 — BENEFITS OF PRUDENTIAL MONETARY POLICY
 # =============================================================================
 # Unconditional simulated moments
 
